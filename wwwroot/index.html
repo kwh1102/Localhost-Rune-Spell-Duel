@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Localhost Rune Spell Duel</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="game-container">
+        <header>
+            <h1>Localhost Rune Spell Duel</h1>
+        </header>
+
+        <div class="battlefield">
+            <!-- Player Section -->
+            <div class="character player">
+                <h2>Player</h2>
+                <div class="hp-bar-container">
+                    <div class="hp-bar" id="player-hp-bar"></div>
+                    <span class="hp-text" id="player-hp-text">50/50</span>
+                </div>
+            </div>
+
+            <!-- VS Badge -->
+            <div class="vs-badge">VS</div>
+
+            <!-- Monster Section -->
+            <div class="character monster">
+                <h2>Monster</h2>
+                <div class="status-container" id="monster-status">Normal</div>
+                <div class="hp-bar-container">
+                    <div class="hp-bar" id="monster-hp-bar"></div>
+                    <span class="hp-text" id="monster-hp-text">100/100</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls-section">
+            <div class="selected-runes" id="selected-runes-container">
+                <div class="rune-slot"></div>
+                <div class="rune-slot"></div>
+                <div class="rune-slot"></div>
+            </div>
+
+            <div class="rune-buttons">
+                <button class="rune-btn btn-fire" onclick="addRune('Fire')">Fire</button>
+                <button class="rune-btn btn-ice" onclick="addRune('Ice')">Ice</button>
+                <button class="rune-btn btn-lightning" onclick="addRune('Lightning')">Lightning</button>
+            </div>
+            
+            <button class="reset-btn" onclick="resetGame()">Reset Game</button>
+        </div>
+
+        <div class="combat-log" id="combat-log">
+            <div class="log-entry system-msg">Game started. Select 3 runes to cast a spell!</div>
+        </div>
+    </div>
+
+    <div class="overlay" id="game-over-overlay">
+        <h2 id="overlay-title">Game Over</h2>
+        <button class="overlay-btn" onclick="resetGame()">Play Again</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
