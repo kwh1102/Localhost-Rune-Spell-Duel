@@ -1,8 +1,8 @@
 let selectedRunes = [];
 let gameState = null;
 
-const maxPlayerHp = 50;
-const maxMonsterHp = 100;
+const maxPlayerHp = 80;
+const maxMonsterHp = 150;
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchState();
@@ -51,7 +51,11 @@ function updateRuneDisplay() {
         if (index < selectedRunes.length) {
             const r = selectedRunes[index];
             slot.className = `rune-slot filled ${r}`;
-            slot.textContent = r;
+            let emoji = '';
+            if (r === 'Fire') emoji = '🔥';
+            if (r === 'Ice') emoji = '❄️';
+            if (r === 'Lightning') emoji = '⚡';
+            slot.textContent = emoji;
         } else {
             slot.className = 'rune-slot';
             slot.textContent = '';
@@ -79,9 +83,55 @@ async function castSpell() {
         for (let i = 0; i < result.logs.length; i++) {
             const log = result.logs[i];
             
+            const prevMonsterHp = gameState.monsterHp;
+            const prevPlayerHp = gameState.playerHp;
+            
             // Update state dynamically based on the intermediate event state
             gameState = log.stateAfter;
             updateUI();
+            
+            // Trigger Animations
+            const playerSprite = document.getElementById('player-sprite');
+            const monsterSprite = document.getElementById('monster-sprite');
+            
+            if (playerSprite && monsterSprite) {
+                // Reset animation classes
+                playerSprite.classList.remove('anim-player-attack', 'anim-damage');
+                monsterSprite.classList.remove('anim-monster-attack', 'anim-damage');
+                
+                // Trigger reflow to restart animation
+                void playerSprite.offsetWidth;
+                void monsterSprite.offsetWidth;
+
+                if (log.actor === 'Player') {
+                    playerSprite.classList.add('anim-player-attack');
+                    
+                    let emoji = '💥';
+                    if (log.message.includes('Inferno')) emoji = '🔥';
+                    if (log.message.includes('Absolute Zero')) emoji = '❄️';
+                    if (log.message.includes('Chain Lightning')) emoji = '⚡';
+                    if (log.message.includes('Plasma')) emoji = '☄️';
+                    if (log.message.includes('Superconductor')) emoji = '🌀';
+                    if (log.message.includes('Elemental')) emoji = '✨';
+                    
+                    setTimeout(() => {
+                        playEffect('monster-container', emoji);
+                        if (log.message.includes('healed')) {
+                            playEffect('player-container', '💖', true);
+                        }
+                    }, 150);
+
+                    if (gameState.monsterHp < prevMonsterHp) {
+                        setTimeout(() => monsterSprite.classList.add('anim-damage'), 150);
+                    }
+                } else if (log.actor === 'Monster' && !log.message.includes('skips')) {
+                    monsterSprite.classList.add('anim-monster-attack');
+                    setTimeout(() => playEffect('player-container', '🐾'), 150);
+                    if (gameState.playerHp < prevPlayerHp) {
+                        setTimeout(() => playerSprite.classList.add('anim-damage'), 150);
+                    }
+                }
+            }
             
             // Append logs
             const entry = document.createElement('div');
@@ -152,7 +202,7 @@ function checkGameOver() {
         const overlay = document.getElementById('game-over-overlay');
         const title = document.getElementById('overlay-title');
         
-        if (gameState.monsterHp <= 0 && gameState.playerHp > 0) {
+        if (gameState.monsterHp <= 0) {
             title.textContent = "Victory!";
             title.style.color = "var(--hp-green)";
         } else if (gameState.playerHp <= 0) {
@@ -165,4 +215,21 @@ function checkGameOver() {
         
         overlay.classList.add('active');
     }
+}
+
+function playEffect(targetId, emoji, isHeal = false) {
+    const container = document.querySelector(`#${targetId}`);
+    if (!container) return;
+    
+    const effect = document.createElement('div');
+    effect.className = `spell-effect ${isHeal ? 'effect-heal' : ''}`;
+    effect.textContent = emoji;
+    
+    container.appendChild(effect);
+    
+    setTimeout(() => {
+        if (effect.parentNode === container) {
+            container.removeChild(effect);
+        }
+    }, 1000);
 }

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Localhost Rune Spell Duel</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css?v=9">
 </head>
 <body>
     <div class="game-container">
@@ -14,11 +14,14 @@
 
         <div class="battlefield">
             <!-- Player Section -->
-            <div class="character player">
+            <div class="character player" id="player-container">
                 <h2>Player</h2>
+                <div class="sprite-container">
+                    <img src="assets/player.png?v=9" alt="Player" class="sprite player-sprite" id="player-sprite">
+                </div>
                 <div class="hp-bar-container">
                     <div class="hp-bar" id="player-hp-bar"></div>
-                    <span class="hp-text" id="player-hp-text">50/50</span>
+                    <span class="hp-text" id="player-hp-text">80/80</span>
                 </div>
             </div>
 
@@ -26,12 +29,15 @@
             <div class="vs-badge">VS</div>
 
             <!-- Monster Section -->
-            <div class="character monster">
+            <div class="character monster" id="monster-container">
                 <h2>Monster</h2>
                 <div class="status-container" id="monster-status">Normal</div>
+                <div class="sprite-container">
+                    <img src="assets/monster.png?v=9" alt="Monster" class="sprite monster-sprite" id="monster-sprite">
+                </div>
                 <div class="hp-bar-container">
                     <div class="hp-bar" id="monster-hp-bar"></div>
-                    <span class="hp-text" id="monster-hp-text">100/100</span>
+                    <span class="hp-text" id="monster-hp-text">150/150</span>
                 </div>
             </div>
         </div>
@@ -62,6 +68,6 @@
         <button class="overlay-btn" onclick="resetGame()">Play Again</button>
     </div>
 
-    <script src="app.js"></script>
+    <script src="app.js?v=10"></script>
 </body>
 </html>

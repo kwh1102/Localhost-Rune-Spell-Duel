@@ -8,6 +8,7 @@ type GameState = {
     PlayerHp: int
     MonsterHp: int
     MonsterStatus: string // "Normal", "Frozen", "Weakened"
+    LastSpellName: string
 }
 
 type EventLog = {
@@ -31,12 +32,13 @@ type GameMessage =
     | CastSpell of string[] * AsyncReplyChannel<TurnResult>
 
 // --- Logic ---
-let maxPlayerHp = 50
+let maxPlayerHp = 80
 
 let initialGameState = {
     PlayerHp = maxPlayerHp
-    MonsterHp = 100
+    MonsterHp = 150
     MonsterStatus = "Normal"
+    LastSpellName = ""
 }
 
 let rnd = Random()
@@ -61,34 +63,47 @@ let evaluateSpell (runes: string list) (state: GameState) =
     let mutable monsterDmg = 0
     let mutable nextStatus = state.MonsterStatus
     let mutable logs = []
+    let mutable spellName = ""
 
     if f = 3 then
+        spellName <- "Inferno"
         monsterDmg <- 25
-        logs <- ("Player", "Cast Inferno! Dealt 25 damage.") :: logs
+        playerDmg <- 8
+        logs <- ("Player", "Cast Inferno! Dealt 25 damage, but took 8 recoil damage from the intense heat!") :: logs
     elif i = 3 then
+        spellName <- "Absolute Zero"
         monsterDmg <- 10
+        playerDmg <- 6
         nextStatus <- "Frozen"
-        logs <- ("Player", "Cast Absolute Zero! Dealt 10 damage and Frozen the monster.") :: logs
+        logs <- ("Player", "Cast Absolute Zero! Dealt 10 damage and Frozen the monster, but took 6 recoil damage from frostbite!") :: logs
     elif l = 3 then
+        spellName <- "Chain Lightning"
         monsterDmg <- rnd.Next(10, 31)
-        logs <- ("Player", sprintf "Cast Chain Lightning! Dealt %d damage." monsterDmg) :: logs
+        playerDmg <- 5
+        logs <- ("Player", sprintf "Cast Chain Lightning! Dealt %d damage, but took 5 recoil damage from the shock!" monsterDmg) :: logs
     elif f = 1 && i = 1 && l = 1 then
+        spellName <- "Elemental Blast"
         monsterDmg <- 15
-        let heal = Math.Min(5, maxPlayerHp - state.PlayerHp)
+        let heal = Math.Min(8, maxPlayerHp - state.PlayerHp)
         playerDmg <- -heal
         logs <- ("Player", sprintf "Cast Elemental Blast! Dealt 15 damage and healed %d HP." heal) :: logs
     elif f = 2 && l = 1 then
+        spellName <- "Plasma Strike"
         monsterDmg <- 20
-        logs <- ("Player", "Cast Plasma Strike! Dealt 20 damage.") :: logs
+        playerDmg <- 2
+        logs <- ("Player", "Cast Plasma Strike! Dealt 20 damage, but took 2 recoil damage.") :: logs
     elif i = 1 && l = 2 then
+        spellName <- "Superconductor"
         monsterDmg <- 15
+        playerDmg <- 2
         nextStatus <- "Weakened"
-        logs <- ("Player", "Cast Superconductor! Dealt 15 damage and Weakened the monster.") :: logs
+        logs <- ("Player", "Cast Superconductor! Dealt 15 damage and Weakened the monster, but took 2 recoil damage.") :: logs
     else
+        spellName <- "Basic Attack"
         monsterDmg <- 5
         logs <- ("Player", "Cast Basic Attack. Dealt 5 damage.") :: logs
 
-    (playerDmg, monsterDmg, nextStatus, logs |> List.rev)
+    (playerDmg, monsterDmg, nextStatus, spellName, logs |> List.rev)
 
 
 let processMonsterTurn (state: GameState) =
@@ -102,8 +117,12 @@ let processMonsterTurn (state: GameState) =
             let dmg = rnd.Next(1, 6)
             (dmg, "Normal", [("Monster", sprintf "Monster is Weakened and attacks weakly for %d damage!" dmg)])
         | _ -> // Normal
-            let dmg = rnd.Next(5, 11)
-            (dmg, "Normal", [("Monster", sprintf "Monster attacks for %d damage!" dmg)])
+            if state.MonsterHp <= 50 then
+                let dmg = rnd.Next(12, 19)
+                (dmg, "Normal", [("Monster", sprintf "Monster is ENRAGED and attacks fiercely for %d damage!" dmg)])
+            else
+                let dmg = rnd.Next(8, 15)
+                (dmg, "Normal", [("Monster", sprintf "Monster attacks for %d damage!" dmg)])
 
 // --- Game Agent ---
 let gameAgent = MailboxProcessor<GameMessage>.Start(fun inbox ->
@@ -123,16 +142,23 @@ let gameAgent = MailboxProcessor<GameMessage>.Start(fun inbox ->
                 return! loop state
             else
                 // Player turn
-                let pDmgSelf, mDmg, nextStatusFromPlayer, pLogs = evaluateSpell (List.ofArray runes) state
+                let pDmgSelf, mDmg, nextStatusFromPlayer, spellName, pLogs = evaluateSpell (List.ofArray runes) state
                 
+                let finalMDmg, finalPDmg, finalLogs, finalStatus =
+                    if state.LastSpellName <> "" && state.LastSpellName = spellName then
+                        (0, 10, [("Player", sprintf "You tried to cast %s again, but the Monster ADAPTED and blocked it! You took 10 counter damage!" spellName)], "Normal")
+                    else
+                        (mDmg, pDmgSelf, pLogs, nextStatusFromPlayer)
+
                 let stateAfterPlayer = {
                     state with 
-                        PlayerHp = Math.Clamp(state.PlayerHp - pDmgSelf, 0, maxPlayerHp)
-                        MonsterHp = Math.Max(0, state.MonsterHp - mDmg)
-                        MonsterStatus = nextStatusFromPlayer
+                        PlayerHp = Math.Clamp(state.PlayerHp - finalPDmg, 0, maxPlayerHp)
+                        MonsterHp = Math.Max(0, state.MonsterHp - finalMDmg)
+                        MonsterStatus = finalStatus
+                        LastSpellName = spellName
                 }
 
-                let pLogEvents = pLogs |> List.map (fun (a, m) -> { Actor = a; Message = m; StateAfter = stateAfterPlayer })
+                let pLogEvents = finalLogs |> List.map (fun (a, m) -> { Actor = a; Message = m; StateAfter = stateAfterPlayer })
 
                 // Monster turn
                 let mDmgToPlayer, nextStatusFromMonster, mLogs = processMonsterTurn stateAfterPlayer
